@@ -9,3 +9,5 @@ app/build/
 .cxx/
 *.keystore
 *.jks
+opencode.json
+opencode.json
