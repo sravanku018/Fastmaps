@@ -1,0 +1,1 @@
+{"check_mappls_integration.py::main": {"line_start": 433, "line_end": 466, "body_hash": "644159c9", "confidence": "high", "path": "check_mappls_integration.py"}, "check_mappls_integration.py::MapplsIntegrationChecker": {"line_start": 16, "line_end": 430, "body_hash": "980688cb", "confidence": "high", "path": "check_mappls_integration.py"}}

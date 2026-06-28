@@ -1,0 +1,42 @@
+{
+  "status": "ISSUES FOUND - Integration needs fixes",
+  "total_checks": 3,
+  "passed": 1,
+  "warnings": 1,
+  "errors": 2,
+  "details": [
+    {
+      "check": "Project Structure",
+      "status": "WARNING",
+      "details": {
+        "required_files": 4,
+        "found_files": 0,
+        "missing_files": [
+          "app/build.gradle.kts",
+          "build.gradle.kts",
+          "settings.gradle.kts",
+          "gradle.properties"
+        ]
+      }
+    },
+    {
+      "check": "API Keys (CORS)",
+      "status": "WARNING",
+      "details": {
+        "rest_api_key_valid": false,
+        "map_sdk_key_valid": false,
+        "cors_preflight_status": "N/A"
+      }
+    },
+    {
+      "check": "Atlas Credentials",
+      "status": "PASS",
+      "details": {
+        "client_id_valid": true,
+        "client_secret_valid": true,
+        "client_id_length": 88,
+        "client_secret_length": 96
+      }
+    }
+  ]
+}

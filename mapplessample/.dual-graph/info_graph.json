@@ -1,0 +1,153 @@
+{
+  "root": "C:\\Users\\srath\\Downloads\\mapplessample",
+  "node_count": 6,
+  "edge_count": 11,
+  "file_count": 4,
+  "symbol_count": 2,
+  "nodes": [
+    {
+      "id": "check_mappls_integration.py",
+      "kind": "file",
+      "path": "check_mappls_integration.py",
+      "ext": ".py",
+      "size": 18825,
+      "keywords": [
+        "mapplsintegrationchecker",
+        "mappls",
+        "integration",
+        "checker",
+        "main"
+      ],
+      "content": "#!/usr/bin/env python3\n\"\"\"\nMappls SDK Integration Checker\nVerifies if the Mappls SDK is properly configured in an Android project.\n\"\"\"\n\nimport os\nimport sys\nimport json\nimport requests\nfrom pathlib import Path\nfrom typing import Dict, List, Tuple, Optional\nimport re\nfrom datetime import datetime\n\n\nclass MapplsIntegrationChecker:\n    def __init__(self, project_path: str = \".\"):\n        self.project_path = Path(project_path)\n        self.results = []\n        self.errors = []\n        self.warnings = []\n        \n    def log(self, message: str, level: str = \"INFO\"):\n        \"\"\"Log a message with timestamp\"\"\"\n        timestamp = datetime.now().strftime(\"%H:%M:%S\")\n        prefix = {\"INFO\": \"[OK]\", \"ERROR\": \"[ERR]\", \"WARNING\": \"[WARN]\", \"CHECK\": \"[-->]\"}\n        print(f\"[{timestamp}] {prefix.get(level, '\u2192')} {message}\")\n        \n    def check_build_gradle(self) -> bool:\n        \"\"\"Check if build.gradle.kts has Mappls SDK dependency\"\"\"\n        self.log(\"Checking build.gradle.kts...\", \"CHECK\")\n        \n        build_file = self.project_path / \"app\" / \"build.gradle.kts\"\n        if not build_file.exists():\n            self.errors.append(\"app/build.gradle.kts not found\")\n            self.log(\"app/build.gradle.kts not found\", \"ERROR\")\n            return False\n            \n        content = build_file.read_text(encoding='utf-8')\n        \n        # Check for Mappls SDK dependency\n        mappls_dep = \"com.mappls.sdk:mappls-android-sdk\"\n        if mappls_dep not in content:\n            self.errors.append(f\"Mappls SDK dependency not found: {mappls_dep}\")\n            self.log(f\"Mappls SDK dependency not found\", \"ERROR\")\n            return False\n            \n        # Extract version\n        version_match = re.search(\n            rf'{re.escape(mappls_dep)}:(\\d+\\.\\d+\\.\\d+)', \n            content\n        )\n        version = version_match.group(1) if version_match else \"unknown\"\n        \n        # Check for required plugins\n        required_plugins = [\n            \"com.android.application\",\n            \"org.jetbrains.kotlin.android\",\n            \"org.jetbrains.kotlin.plugin.compose\"\n        ]\n        \n        missing_plugins = []\n        for plugin in required_plugins:\n            if plugin not in content:\n                missing_plugins.append(plugin)\n                \n        if missing_plugins:\n            self.warnings.append(f\"Missing plugins: {', '.join(missing_plugins)}\")\n            self.log(f\"Missing plugins: {', '.join(missing_plugins)}\", \"WARNING\")\n        else:\n            self.log(\"All required plugins found\", \"INFO\")\n            \n        self.results.append({\n            \"check\": \"build.gradle.kts\",\n            \"status\": \"PASS\",\n            \"details\": {\n                \"mappls_dependency\": f\"{mappls_dep}:{version}\",\n                \"version\": version,\n                \"plugins_present\": len(required_plugins) - len(missing_plugins)\n            }\n        })\n        \n        self.log(f\"Mappls SDK {version} found in build.gradle.kts\", \"INFO\")\n        return True\n        \n    def check_main_application(self) -> bool:\n        \"\"\"Check if MainApplication.kt has proper Mappls initialization\"\"\"\n        self.log(\"Checking MainApplication.kt...\", \"CHECK\")\n        \n        # Search for MainApplication.kt\n        kotlin_files = list(self.project_path.rglob(\"*.kt\"))\n        main_app_files = [f for f in kotlin_files if \"MainApplication\" in f.name]\n        \n        if not main_app_files:\n            self.errors.append(\"MainApplication.kt not found\")\n            self.log(\"MainApplication.kt not found\", \"ERROR\")\n            return False\n            \n        main_app_file = main_app_files[0]\n        content = main_app_file.read_text(encoding='utf-8')\n        \n        # Check for required Mappls initialization\n        required_checks = {\n            \"MapplsAccountManager.getInstance().restAPIKey\": \"REST API Key\",\n            \"MapplsAccountManager.getInstance().mapSDKKey\": \"Map SDK Key\",\n            \"MapplsAccountManager.getInstance().atlasClientId\": \"Atlas Client ID\",\n            \"MapplsAccountManager.getInstance().atlasClientSecret\": \"Atlas Client Secret\",\n            \"Mappls.getInstance(applicationContext)\": \"Mappls initialization\"\n        }\n        \n        found_checks = []\n        missing_checks = []\n        \n        for check, name in required_checks.items():\n            if check in content:\n                found_checks.append(name)\n            else:\n                missing_checks.append(name)\n                \n        if missing_checks:\n            self.errors.append(f\"Missing Mappls initialization: {', '.join(missing_checks)}\")\n            self.log(f\"Missing: {', '.join(missing_checks)}\", \"ERROR\")\n            return False\n            \n        # Check for placeholder values\n        placeholder_patterns = [\n            \"YOUR_CLIENT_ID\",\n            \"YOUR_CLIENT_SECRET\",\n            \"YOUR_API_KEY\",\n            \"YOUR_REST_API_KEY\",\n            \"YOUR_MAP_SDK_KEY\"\n        ]\n        \n        placeholders_found = []\n        for pattern in placeholder_patterns:\n            if pattern in content:\n                placeholders_found.append(pattern)\n                \n        if placeholders_found:\n            self.warnings.append(f\"Placeholder values found: {', '.join(placeholders_found)}\")\n            self.log(f\"Placeholder values: {', '.join(placeholders_found)}\", \"WARNING\")\n            \n        # Check for Application class inheritance\n        if \"Application()\" in content or \": Application()\" in content:\n            self.log(\"Application class inheritance found\", \"INFO\")\n        else:\n            self.warnings.append(\"Application class inheritance not found\")\n            self.log(\"Application class inheritance not found\", \"WARNING\")\n            \n        self.results.append({\n            \"check\": \"MainApplication.kt\",\n            \"status\": \"PASS\",\n            \"details\": {\n                \"file\": str(main_app_file),\n                \"initialization_checks\": len(found_checks),\n                \"missing_checks\": len(missing_checks),\n                \"placeholders\": placeholders_found\n            }\n        })\n        \n        self.log(f\"All Mappls initialization found in {main_app_file.name}\", \"INFO\")\n        return True\n        \n    def check_api_keys(self, rest_api_key: str, map_sdk_key: str) -> bool:\n        \"\"\"Check if API keys are valid by making a test request with CORS headers\"\"\"\n        self.log(\"Checking API keys validity (with CORS)...\", \"CHECK\")\n        \n        # Mappls uses access_token as query parameter\n        test_url = \"https://search.mappls.com/search/address/geocode\"\n        \n        rest_key_valid = False\n        map_key_valid = False\n        \n        # CORS headers to simulate browser request\n        cors_headers = {\n            \"Origin\": \"http://localhost:3000\",\n            \"Access-Control-Request-Method\": \"GET\",\n            \"Access-Control-Request-Headers\": \"Content-Type\"\n        }\n        \n        # Test REST API Key with CORS preflight\n        self.log(\"Testing REST API Key with CORS preflight...\", \"CHECK\")\n        try:\n            # First: CORS preflight (OPTIONS)\n            preflight_response = requests.options(\n                test_url,\n                headers=cors_headers,\n                timeout=10\n            )\n            self.log(f\"  CORS Preflight Status: {preflight_response.status_code}\", \"INFO\")\n            \n            # Check CORS headers in preflight response\n            allowed_origin = preflight_response.headers.get(\"Access-Control-Allow-Origin\", \"NOT SET\")\n            allowed_methods = preflight_response.headers.get(\"Access-Control-Allow-Methods\", \"NOT SET\")\n            allowed_headers = preflight_response.headers.get(\"Access-Control-Allow-Headers\", \"NOT SET\")\n            \n            self.log(f\"  Allow-Origin: {allowed_origin}\", \"INFO\")\n            self.log(f\"  Allow-Methods: {allowed_methods}\", \"INFO\")\n            self.log(f\"  Allow-Headers: {allowed_headers}\", \"INFO\")\n            \n            # Second: Actual GET request with Origin header\n            response = requests.get(\n                test_url,\n                params={\n                    \"address\": \"Connaught Place, New Delhi\",\n                    \"access_token\": rest_api_key\n                },\n                headers={\"Origin\": \"http://localhost:3000\"},\n                timeout=10\n            )\n            \n            # Check CORS headers in actual response\n            response_origin = response.headers.get(\"Access-Control-Allow-Origin\", \"NOT SET\")\n            self.log(f\"  Response Allow-Origin: {response_origin}\", \"INFO\")\n            \n            data = response.json()\n            \n            if response.status_code == 200:\n                results_count = len(data.get(\"copResults\", []))\n                self.log(f\"  REST API Key VALID - returned {results_count} results\", \"INFO\")\n                rest_key_valid = True\n            elif response.status_code == 400 and \"Invalid Token\" in str(data.get(\"error\", \"\")):\n                self.log(f\"  REST API Key INVALID - {data.get('error_description', 'Token not recognized')}\", \"ERROR\")\n            elif response.status_code == 401:\n                self.log(\"  REST API Key INVALID (401 Unauthorized)\", \"ERROR\")\n            elif response.status_code == 403:\n                self.log(\"  REST API Key exceeded limit (403 Forbidden)\", \"ERROR\")\n            else:\n                self.log(f\"  REST API Key returned status {response.status_code}\", \"WARNING\")\n                \n        except requests.RequestException as e:\n            self.log(f\"  REST API Key test failed: {e}\", \"ERROR\")\n            \n        # Test Map SDK Key with CORS\n        self.log(\"Testing Map SDK Key with CORS preflight...\", \"CHECK\")\n        try:\n            # CORS preflight\n            preflight_response = requests.options(\n                test_url,\n                headers=cors_headers,\n                timeout=10\n            )\n            \n            # Actual GET request\n            response = requests.get(\n                test_url,\n                params={\n                    \"address\": \"Marine Drive, Mumbai\",\n                    \"access_token\": map_sdk_key\n                },\n                headers={\"Origin\": \"http://localhost:3000\"},\n                timeout=10\n            )\n            \n            response_origin = response.headers.get(\"Access-Control-Allow-Origin\", \"NOT SET\")\n            self.log(f\"  Response Allow-Origin: {response_origin}\", \"INFO\")\n            \n            data = response.json()\n            \n            if response.status_code == 200:\n                results_count = len(data.get(\"copResults\", []))\n                self.log(f\"  Map SDK Key VALID - returned {results_count} results\", \"INFO\")\n                map_key_valid = True\n            elif response.status_code == 400 and \"Invalid Token\" in str(data.get(\"error\", \"\")):\n                self.log(f\"  Map SDK Key INVALID - {data.get('error_description', 'Token not recognized')}\", \"ERROR\")\n            elif response.status_code == 401:\n                self.log(\"  Map SDK Key INVALID (401 Unauthorized)\", \"ERROR\")\n            elif response.status_code == 403:\n                self.log(\"  Map SDK Key exceeded limit (403 Forbidden)\", \"ERROR\")\n            else:\n                self.log(f\"  Map SDK Key returned status {response.status_code}\", \"WARNING\")\n                \n        except requests.RequestException as e:\n            self.log(f\"  Map SDK Key test failed: {e}\", \"ERROR\")\n            \n        self.results.append({\n            \"check\": \"API Keys (CORS)\",\n            \"status\": \"PASS\" if rest_key_valid and map_key_valid else \"WARNING\",\n            \"details\": {\n                \"rest_api_key_valid\": rest_key_valid,\n                \"map_sdk_key_valid\": map_key_valid,\n                \"cors_preflight_status\": preflight_response.status_code if preflight_response else \"N/A\"\n            }\n        })\n        \n        return rest_key_valid and map_key_valid\n        \n    def check_atlas_credentials(self, client_id: str, client_secret: str) -> bool:\n        \"\"\"Check if Atlas credentials are properly formatted\"\"\"\n        self.log(\"Checking Atlas credentials format...\", \"CHECK\")\n        \n        # Check client ID format (should be a long string)\n        client_id_valid = len(client_id) > 20 and not client_id.startswith(\"YOUR_\")\n        \n        # Check client secret format (should be a long string)\n        client_secret_valid = len(client_secret) > 20 and not client_secret.startswith(\"YOUR_\")\n        \n        if client_id_valid and client_secret_valid:\n            self.log(\"Atlas credentials format looks valid\", \"INFO\")\n        else:\n            issues = []\n            if not client_id_valid:\n                issues.append(\"Client ID appears to be placeholder or too short\")\n            if not client_secret_valid:\n                issues.append(\"Client Secret appears to be placeholder or too short\")\n            self.warnings.extend(issues)\n            self.log(f\"Atlas credential issues: {'; '.join(issues)}\", \"WARNING\")\n            \n        self.results.append({\n            \"check\": \"Atlas Credentials\",\n            \"status\": \"PASS\" if client_id_valid and client_secret_valid else \"WARNING\",\n            \"details\": {\n                \"client_id_valid\": client_id_valid,\n                \"client_secret_valid\": client_secret_valid,\n                \"client_id_length\": len(client_id),\n                \"client_secret_length\": len(client_secret)\n            }\n        })\n        \n        return client_id_valid and client_secret_valid\n        \n    def check_project_structure(self) -> bool:\n        \"\"\"Check if the project structure is correct\"\"\"\n        self.log(\"Checking project structure...\", \"CHECK\")\n        \n        required_paths = [\n            \"app/build.gradle.kts\",\n            \"build.gradle.kts\",\n            \"settings.gradle.kts\",\n            \"gradle.properties\"\n        ]\n        \n        missing_paths = []\n        for path in required_paths:\n            if not (self.project_path / path).exists():\n                missing_paths.append(path)\n                \n        if missing_paths:\n            self.warnings.append(f\"Missing project files: {', '.join(missing_paths)}\")\n            self.log(f\"Missing: {', '.join(missing_paths)}\", \"WARNING\")\n        else:\n            self.log(\"Project structure looks correct\", \"INFO\")\n            \n        self.results.append({\n            \"check\": \"Project Structure\",\n            \"status\": \"PASS\" if not missing_paths else \"WARNING\",\n            \"details\": {\n                \"required_files\": len(required_paths),\n                \"found_files\": len(required_paths) - len(missing_paths),\n                \"missing_files\": missing_paths\n            }\n        })\n        \n        return len(missing_paths) == 0\n        \n    def run_checks(self, credentials: Dict[str, str] = None) -> Dict:\n        \"\"\"Run all checks and return results\"\"\"\n        self.log(\"=\" * 60, \"INFO\")\n        self.log(\"Starting Mappls SDK Integration Check\", \"INFO\")\n        self.log(\"=\" * 60, \"INFO\")\n        \n        # Run structural checks\n        self.check_project_structure()\n        build_gradle_ok = self.check_build_gradle()\n        main_app_ok = self.check_main_application()\n        \n        # Run credential checks if provided\n        if credentials:\n            rest_api_key = credentials.get(\"rest_api_key\", \"\")\n            map_sdk_key = credentials.get(\"map_sdk_key\", \"\")\n            client_id = credentials.get(\"client_id\", \"\")\n            client_secret = credentials.get(\"client_secret\", \"\")\n            \n            self.check_api_keys(rest_api_key, map_sdk_key)\n            self.check_atlas_credentials(client_id, client_secret)\n        \n        # Generate summary\n        self.log(\"=\" * 60, \"INFO\")\n        self.log(\"SUMMARY\", \"INFO\")\n        self.log(\"=\" * 60, \"INFO\")\n        \n        total_checks = len(self.results)\n        passed_checks = sum(1 for r in self.results if r[\"status\"] == \"PASS\")\n        warnings_count = len(self.warnings)\n        errors_count = len(self.errors)\n        \n        self.log(f\"Total checks: {total_checks}\", \"INFO\")\n        self.log(f\"Passed: {passed_checks}\", \"INFO\")\n        self.log(f\"Warnings: {warnings_count}\", \"INFO\")\n        self.log(f\"Errors: {errors_count}\", \"INFO\")\n        \n        # Overall status\n        if errors_count == 0 and warnings_count == 0:\n            overall_status = \"EXCELLENT - Integration looks perfect!\"\n        elif errors_count == 0:\n            overall_status = \"GOOD - Integration has minor warnings\"\n        else:\n            overall_status = \"ISSUES FOUND - Integration needs fixes\"\n            \n        self.log(f\"\\nOverall Status: {overall_status}\", \"INFO\")\n        \n        # Print warnings\n        if warnings_count > 0:\n            self.log(\"\\nWarnings:\", \"INFO\")\n            for warning in self.warnings:\n                self.log(f\"  - {warning}\", \"WARNING\")\n                \n        # Print errors\n        if errors_count > 0:\n            self.log(\"\\nErrors:\", \"ERROR\")\n            for error in self.errors:\n                self.log(f\"  - {error}\", \"ERROR\")\n                \n        # Print recommendations\n        self.log(\"\\nRecommendations:\", \"INFO\")\n        if not build_gradle_ok:\n            self.log(\"  1. Add Mappls SDK dependency to app/build.gradle.kts\", \"INFO\")\n        if not main_app_ok:\n            self.log(\"  2. Create/update MainApplication.kt with proper initialization\", \"INFO\")\n        if warnings_count > 0:\n            self.log(\"  3. Review warnings above and update credentials if needed\", \"INFO\")\n            \n        return {\n            \"status\": overall_status,\n            \"total_checks\": total_checks,\n            \"passed\": passed_checks,\n            \"warnings\": warnings_count,\n            \"errors\": errors_count,\n            \"details\": self.results\n        }\n\n\ndef main():\n    \"\"\"Main function to run the checker\"\"\"\n    print(\"\\nMappls SDK Integration Checker\")\n    print(\"=\" * 60)\n    \n    # Your credentials\n    credentials = {\n        \"rest_api_key\": \"6028f7f20d0f77db48c8de02\",\n        \"map_sdk_key\": \"6028f7f20d0f77db48c8de02\",\n        \"client_id\": \"96dHZVzsAusVK6FU4fGDDFrrFjNKTicKf9s5uxqepvMUkgNbN7ohQiwG2msyhfGCtBgjyjEtJ6hz-AKhDpnGQA==\",\n        \"client_secret\": \"lrFxI-iSEg9iM76CbYdAoW35RGGg8KRx1Hy8H2__HLHPn_iKQWf_Cf_hp727UXiHUAKVYJ0D-19AgLDvs0K89THliUOw0ksA\"\n    }\n    \n    # Run checker\n    checker = MapplsIntegrationChecker(project_path=\".\")\n    results = checker.run_checks(credentials)\n    \n    # Save results to JSON\n    output_file = \"mappls_integration_report.json\"\n    with open(output_file, \"w\") as f:\n        json.dump(results, f, indent=2)\n        \n    print(f\"\\nDetailed report saved to: {output_file}\")\n    print(\"=\" * 60)\n    \n    # Return exit code based on results\n    if results[\"errors\"] > 0:\n        sys.exit(1)\n    else:\n        sys.exit(0)\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "summary": "!/usr/bin/env python3. Contains 2 functions/classes: MapplsIntegrationChecker, main.",
+      "file_hash": "5300d44e"
+    },
+    {
+      "id": "check_mappls_integration.py::main",
+      "kind": "symbol",
+      "path": "check_mappls_integration.py",
+      "ext": ".py",
+      "size": 34,
+      "keywords": [
+        "main"
+      ],
+      "symbol_type": "use_case",
+      "name": "main",
+      "line_start": 433,
+      "line_end": 466,
+      "body_hash": "644159c9",
+      "confidence": "high",
+      "exported": true
+    },
+    {
+      "id": "check_mappls_integration.py::MapplsIntegrationChecker",
+      "kind": "symbol",
+      "path": "check_mappls_integration.py",
+      "ext": ".py",
+      "size": 415,
+      "keywords": [
+        "mapplsintegrationchecker",
+        "mappls",
+        "integration",
+        "checker"
+      ],
+      "symbol_type": "model",
+      "name": "MapplsIntegrationChecker",
+      "line_start": 16,
+      "line_end": 430,
+      "body_hash": "980688cb",
+      "confidence": "high",
+      "exported": true
+    },
+    {
+      "id": "mappls_integration_report.json",
+      "kind": "file",
+      "path": "mappls_integration_report.json",
+      "ext": ".json",
+      "size": 956,
+      "keywords": [],
+      "content": "{\n  \"status\": \"ISSUES FOUND - Integration needs fixes\",\n  \"total_checks\": 3,\n  \"passed\": 1,\n  \"warnings\": 1,\n  \"errors\": 2,\n  \"details\": [\n    {\n      \"check\": \"Project Structure\",\n      \"status\": \"WARNING\",\n      \"details\": {\n        \"required_files\": 4,\n        \"found_files\": 0,\n        \"missing_files\": [\n          \"app/build.gradle.kts\",\n          \"build.gradle.kts\",\n          \"settings.gradle.kts\",\n          \"gradle.properties\"\n        ]\n      }\n    },\n    {\n      \"check\": \"API Keys (CORS)\",\n      \"status\": \"WARNING\",\n      \"details\": {\n        \"rest_api_key_valid\": false,\n        \"map_sdk_key_valid\": false,\n        \"cors_preflight_status\": \"N/A\"\n      }\n    },\n    {\n      \"check\": \"Atlas Credentials\",\n      \"status\": \"PASS\",\n      \"details\": {\n        \"client_id_valid\": true,\n        \"client_secret_valid\": true,\n        \"client_id_length\": 88,\n        \"client_secret_length\": 96\n      }\n    }\n  ]\n}",
+      "summary": "\"status\": \"ISSUES FOUND - Integration needs fixes\",.",
+      "file_hash": "1899f9e8"
+    },
+    {
+      "id": "opencode.json",
+      "kind": "file",
+      "path": "opencode.json",
+      "ext": ".json",
+      "size": 191,
+      "keywords": [],
+      "content": "{\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"mcp\": {\n    \"dual-graph\": {\n      \"type\": \"remote\",\n      \"url\": \"http://127.0.0.1:8080/mcp\",\n      \"enabled\": true\n    }\n  }\n}\n",
+      "summary": "\"$schema\": \"https://opencode.ai/config.json\",.",
+      "file_hash": "df286eed"
+    },
+    {
+      "id": "PROGRESS.md",
+      "kind": "file",
+      "path": "PROGRESS.md",
+      "ext": ".md",
+      "size": 3915,
+      "keywords": [],
+      "content": "# FastRoute - Biker Navigation App Progress\n\n## Date: 2026-06-08\n\n## Status: IN PROGRESS - Build running, battery low\n\n---\n\n## What's Working\n\n| Feature | Status |\n|---------|--------|\n| Mappls SDK 8.3.1 (legacy OAuth 2.0) | \u2705 Working |\n| Map tiles loading | \u2705 Working |\n| API Key `6028f7f20d0f77db48c8de02979e8cf3` | \u2705 Valid |\n| WiFi debugging (192.168.29.155:5555) | \u2705 Connected |\n| Device: Realme CPH2661 (Android 16) | \u2705 Connected |\n\n## What's Built (Compose Rewrite)\n\n| File | Purpose |\n|------|---------|\n| `app/build.gradle.kts` | Compose BOM + Mappls SDK + OkHttp + Gson |\n| `build.gradle.kts` | Root: Kotlin 2.0.21 + Compose plugin |\n| `settings.gradle.kts` | Mappls Maven repo |\n| `FastRouteApplication.kt` | SDK init with keys |\n| `MainActivity.kt` | Compose entry point |\n| `ui/theme/Theme.kt` | Material3 teal theme |\n| `MapScreen.kt` | Main screen: Map + Search + Route |\n| `api/MapplsApi.kt` | REST API: search + routing |\n| `AndroidManifest.xml` | Permissions + meta-data |\n\n## What's Implemented\n\n1. **Map with lifecycle** - MapView inside AndroidView with DisposableEffect lifecycle\n2. **Search bar** - \"Where to, biker?\" with Mappls autosuggest\n3. **Destination markers** - Place marker on selected destination\n4. **Biker routing** - `driving-2-wheel` profile via Mappls Routing API\n5. **Route polyline** - Decoded and drawn on map in teal (#00897B)\n6. **Route info panel** - Distance (km) + Duration (min) + \"GO\" button\n7. **My Location FAB** - Centers map on current location\n8. **Camera bounds** - Auto-fits to show entire route\n\n## Current Issue\n\n**Black screen on launch** - Fixed by:\n- Adding proper Activity lifecycle to MapView via DisposableEffect\n- Using `activity.intent?.extras` for onCreate\n- Adding `ON_START/ON_RESUME/ON_PAUSE/ON_STOP/ON_DESTROY` observers\n\n**GPS not working** - Location permission requested but `lastKnownLocation` returns null because:\n- Device GPS may be off\n- First launch needs time to get fix\n- Need to add `FusedLocationProviderClient` for reliable GPS\n\n## Next Session To-Do\n\n1. **Check if build succeeded** - Run:\n   ```\n   # From mapplessample directory\n   cd C:\\Users\\srath\\Downloads\\mapplessample\n   & \"C:\\Program Files\\Android\\Android Studio\\jbr\\bin\\keytool.exe\" -version\n   ```\n\n2. **Install and test** (if build passed):\n   ```\n   adb -s 192.168.29.155:5555 install -r app\\build\\outputs\\apk\\debug\\app-debug.apk\n   adb -s 192.168.29.155:5555 shell am start -n com.example.fastenroute/.MainActivity\n   ```\n\n3. **Fix GPS** - Add FusedLocationProviderClient:\n   ```kotlin\n   // In MapScreen.kt, replace lastKnownLocation with:\n   val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)\n   fusedLocationClient.lastLocation.addOnSuccessListener { loc ->\n       if (loc != null) {\n           currentLat = loc.latitude\n           currentLng = loc.longitude\n       }\n   }\n   ```\n\n4. **Reconnect WiFi debugging** (if disconnected):\n   ```\n   adb tcpip 5555\n   adb connect 192.168.29.155:5555\n   ```\n\n## Build Command (for next session)\n\n```powershell\n$env:JAVA_HOME = \"C:\\Program Files\\Android\\Android Studio\\jbr\"\n$env:ANDROID_HOME = \"C:\\Users\\srath\\AppData\\Local\\Android\\Sdk\"\n& \"C:\\Users\\srath\\.gradle\\wrapper\\dists\\gradle-8.11.1-bin\\bpt9gzteqjrbo1mjrsomdt32c\\gradle-8.11.1\\bin\\gradle.bat\" assembleDebug --no-daemon\n```\n\n## Key Credentials\n\n| Key | Value |\n|-----|-------|\n| REST API Key | `6028f7f20d0f77db48c8de02979e8cf3` |\n| Map SDK Key | `6028f7f20d0f77db48c8de02979e8cf3` |\n| Atlas Client ID | `96dHZVzsAusVK6FU4fGDDFrrFjNKTicKf9s5uxqepvMUkgNbN7ohQiwG2msyhfGCtBgjyjEtJ6hz-AKhDpnGQA==` |\n| Atlas Client Secret | `lrFxI-iSEg9iM76CbYdAoW35RGGg8KRx1Hy8H2__HLHPn_iKQWf_Cf_hp727UXiHUAKVYJ0D-19AgLDvs0K89THliUOw0ksA` |\n| Device WiFi ADB | `192.168.29.155:5555` |\n| Package | `com.example.fastenroute` |\n| Debug SHA-256 | `43:5B:28:79:79:C8:D2:DC:E5:95:D0:E5:43:8E:2F:DF:2D:94:85:6B:69:0D:11:87:26:8E:A8:C4:F5:CE:3D:26` |\n",
+      "summary": "FastRoute - Biker Navigation App Progress.",
+      "file_hash": "656a6241"
+    }
+  ],
+  "edges": [
+    {
+      "from": "check_mappls_integration.py",
+      "to": "os",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "sys",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "json",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "requests",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "re",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "pathlib",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "typing",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "datetime",
+      "rel": "imports"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "check_mappls_integration.py::main",
+      "rel": "contains"
+    },
+    {
+      "from": "check_mappls_integration.py",
+      "to": "check_mappls_integration.py::MapplsIntegrationChecker",
+      "rel": "contains"
+    },
+    {
+      "from": "opencode.json",
+      "to": "ai/config.js",
+      "rel": "references"
+    }
+  ]
+}
