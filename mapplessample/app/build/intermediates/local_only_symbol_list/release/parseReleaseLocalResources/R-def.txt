@@ -1,8 +1,0 @@
-R_DEF: Internal format may change without notice
-local
-anim bounce_marker
-anim pulse_scale
-drawable marker_destination
-drawable marker_location
-drawable marker_location_pulsing
-id pulse_ring
