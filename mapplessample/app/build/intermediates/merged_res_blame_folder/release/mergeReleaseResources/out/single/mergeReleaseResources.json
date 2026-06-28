@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.example.fastenroute.app-release-60:/anim_pulse_scale.xml.flat",
+        "source": "com.example.fastenroute.app-main-61:/anim/pulse_scale.xml"
+    },
+    {
+        "merged": "com.example.fastenroute.app-release-60:/drawable_marker_location_pulsing.xml.flat",
+        "source": "com.example.fastenroute.app-main-61:/drawable/marker_location_pulsing.xml"
+    },
+    {
+        "merged": "com.example.fastenroute.app-release-60:/drawable_marker_location.xml.flat",
+        "source": "com.example.fastenroute.app-main-61:/drawable/marker_location.xml"
+    },
+    {
+        "merged": "com.example.fastenroute.app-release-60:/anim_bounce_marker.xml.flat",
+        "source": "com.example.fastenroute.app-main-61:/anim/bounce_marker.xml"
+    },
+    {
+        "merged": "com.example.fastenroute.app-release-60:/drawable_marker_destination.xml.flat",
+        "source": "com.example.fastenroute.app-main-61:/drawable/marker_destination.xml"
+    }
+]
