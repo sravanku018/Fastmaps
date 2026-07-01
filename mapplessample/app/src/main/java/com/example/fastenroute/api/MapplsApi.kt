@@ -256,8 +256,8 @@ object MapplsApi {
         endLat: Double, endLng: Double
     ): List<Route> {
         return try {
-            // Use biking profile + alternatives for multiple route options
-            val url = "https://apis.mappls.com/advancedmaps/v1/$API_KEY/route_adv/biking/$startLng,$startLat;$endLng,$endLat?geometries=polyline&overview=full&steps=true&alternatives=true"
+            // Use driving profile + alternatives for multiple route options
+            val url = "https://apis.mappls.com/advancedmaps/v1/$API_KEY/route_adv/driving/$startLng,$startLat;$endLng,$endLat?geometries=polyline&overview=full&steps=true&alternatives=true"
             Log.d("MapplsApi", "Route URL: $url")
             val request = Request.Builder().url(url).get().build()
             val response = client.newCall(request).execute()
