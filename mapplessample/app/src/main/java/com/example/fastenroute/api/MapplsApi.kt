@@ -31,14 +31,11 @@ data class RouteResults(
 )
 
 data class Route(
-    @SerializedName("summary") val summary: RouteSummary?,
+    @SerializedName("distance") val distance: Double?,
+    @SerializedName("duration") val duration: Double?,
     @SerializedName("legs") val legs: List<Leg>?
 )
 
-data class RouteSummary(
-    @SerializedName("totalDistance") val totalDistance: String?,
-    @SerializedName("totalTime") val totalTime: String?
-)
 
 data class Leg(
     @SerializedName("steps") val steps: List<Step>?

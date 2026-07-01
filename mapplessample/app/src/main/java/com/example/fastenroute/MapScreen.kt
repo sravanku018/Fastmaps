@@ -381,8 +381,8 @@ fun MapScreen() {
                                 if (routes.isNotEmpty()) {
                                     // Build route options list
                                     routeOptions = routes.mapIndexed { index, route ->
-                                        val distMeters = route.summary?.totalDistance?.toDoubleOrNull() ?: 0.0
-                                        val timeSeconds = route.summary?.totalTime?.toDoubleOrNull() ?: 0.0
+                                        val distMeters = route.distance ?: 0.0
+                                        val timeSeconds = route.duration ?: 0.0
                                         val km = String.format("%.1f", distMeters / 1000.0)
                                         val mins = (timeSeconds / 60.0).toInt()
                                         val label = when (index) {
